@@ -3,306 +3,465 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twitch Pixel Canvas</title>
+    <title>Twitch Pixel Draw</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             padding: 20px;
         }
+
         .container {
-            background: rgba(255, 255, 255, 0.95);
+            background: white;
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 900px;
+            max-width: 1200px;
             width: 100%;
         }
+
         h1 {
-            text-align: center;
             color: #6441a5;
+            text-align: center;
             margin-bottom: 10px;
-            font-size: 28px;
+            font-size: 2.5em;
         }
+
         .subtitle {
             text-align: center;
             color: #666;
-            margin-bottom: 25px;
-            font-size: 14px;
+            margin-bottom: 30px;
         }
-        .settings {
+
+        .setup-section {
             background: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
         }
+
         .input-group {
+            display: flex;
+            gap: 10px;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        input, select {
-            width: 100%;
-            padding: 10px;
+
+        input, select, button {
+            padding: 12px 20px;
             border: 2px solid #ddd;
             border-radius: 8px;
-            font-size: 14px;
-            transition: border 0.3s;
+            font-size: 16px;
         }
+
         input:focus, select:focus {
             outline: none;
             border-color: #6441a5;
         }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+        }
+
         button {
-            width: 100%;
-            padding: 12px;
             background: #6441a5;
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            font-weight: bold;
+            transition: all 0.3s;
         }
+
         button:hover {
             background: #7d5bbe;
+            transform: translateY(-2px);
         }
+
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+            transform: none;
         }
-        .canvas-wrapper {
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .canvas-container {
             display: flex;
             justify-content: center;
-            margin: 20px 0;
+            margin: 30px 0;
             background: #000;
-            border-radius: 10px;
             padding: 20px;
+            border-radius: 10px;
         }
+
         canvas {
             image-rendering: pixelated;
             image-rendering: crisp-edges;
-            border: 2px solid #6441a5;
+            border: 3px solid #6441a5;
+            background: #000;
         }
-        .status {
-            text-align: center;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-weight: 600;
+
+        .instructions {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ffc107;
+            margin-top: 20px;
         }
-        .status.offline { background: #ffebee; color: #c62828; }
-        .status.online { background: #e8f5e9; color: #2e7d32; }
-        .info {
-            background: #e3f2fd;
+
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .instructions p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .color-box {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .example-code {
+            background: #2d2d2d;
+            color: #f8f8f2;
             padding: 15px;
             border-radius: 8px;
-            margin-top: 15px;
-            font-size: 13px;
-            color: #1565c0;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
         }
-        .info strong { color: #0d47a1; }
-        .logs {
-            background: #f5f5f5;
-            border-radius: 8px;
+
+        .log-container {
+            background: #f8f9fa;
             padding: 15px;
+            border-radius: 8px;
             max-height: 200px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            margin-top: 15px;
+            margin-top: 20px;
         }
+
         .log-entry {
-            margin-bottom: 5px;
             padding: 5px;
+            margin-bottom: 5px;
             border-left: 3px solid #6441a5;
             padding-left: 10px;
+            font-size: 14px;
         }
-        .log-entry.error { border-left-color: #c62828; color: #c62828; }
-        .log-entry.success { border-left-color: #2e7d32; color: #2e7d32; }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 Twitch Pixel Canvas</h1>
-        <div class="subtitle">Интерактивный пиксельный холст для стрима</div>
-        
-        <div class="settings">
+        <h1>🎨 Twitch Pixel Draw</h1>
+        <p class="subtitle">Интерактивный оверлей для рисования пикселями</p>
+
+        <div class="setup-section">
             <div class="input-group">
-                <label>Twitch канал (без #):</label>
-                <input type="text" id="channel" placeholder="nickname">
-            </div>
-            <div class="input-group">
-                <label>Размер холста:</label>
-                <select id="size">
-                    <option value="18x16">18×16 (288 пикселей)</option>
-                    <option value="24x20">24×20 (480 пикселей)</option>
+                <input type="text" id="channelInput" placeholder="Введите никнейм канала Twitch">
+                <select id="resolutionSelect">
+                    <option value="18x16">18x16 (288 пикселей)</option>
+                    <option value="24x20">24x20 (480 пикселей)</option>
                 </select>
+                <button id="connectBtn" onclick="connect()">Подключиться</button>
+                <button id="disconnectBtn" onclick="disconnect()" disabled>Отключиться</button>
             </div>
-            <div class="input-group">
-                <label>Размер пикселя (px):</label>
-                <input type="number" id="pixelSize" value="15" min="5" max="50">
+            <div id="status" class="status disconnected">❌ Не подключено</div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="pixelCanvas"></canvas>
+        </div>
+
+        <div class="instructions">
+            <h3>📖 Инструкция для зрителей:</h3>
+            
+            <p><strong>Команда для рисования:</strong> <code>!ds [пиксели]</code></p>
+            
+            <p><strong>Цвета пикселей:</strong></p>
+            <div class="color-palette">
+                <div class="color-box" style="background: #000; color: white;">0</div>
+                <div class="color-box" style="background: #ff0000; color: white;">1</div>
+                <div class="color-box" style="background: #00ff00;">2</div>
+                <div class="color-box" style="background: #0000ff; color: white;">3</div>
+                <div class="color-box" style="background: #ffff00;">4</div>
+                <div class="color-box" style="background: #ff00ff; color: white;">5</div>
+                <div class="color-box" style="background: #00ffff;">6</div>
+                <div class="color-box" style="background: #ffffff;">7</div>
+                <div class="color-box" style="background: #ffa500;">8</div>
+                <div class="color-box" style="background: #800080; color: white;">9</div>
             </div>
-            <button id="startBtn">🚀 Запустить</button>
-            <button id="stopBtn" style="display:none; background:#c62828; margin-top:10px;">⏹ Остановить</button>
+
+            <p><strong>Мерцающие цвета (заглавные буквы A-I):</strong> те же цвета, но с эффектом мигания</p>
+
+            <p><strong>Примеры команд:</strong></p>
+            
+            <div class="example-code">
+// Для 18x16 (288 символов)<br>
+!ds 000000000000000000000000000000000000000000111111111111111111111111111111111111111111222222222222222222222222222222222222222222333333333333333333333333333333333333333333444444444444444444444444444444444444444444555555555555555555555555555555555555555555666666666666666666666
+<br><br>
+// Смайлик (пример)<br>
+!ds 000000000000000000003333777777773333000033777777777777773300377777AAAA7777777703777AA777777AA777770377A77777777777A77703777777777777777770377777777777777777037777AA7777AA77770377777AAAAAAA7777703777777777777777700337777777777777330000333377777333000000000000000000000
+<br><br>
+// Для 24x20 (480 символов) - увеличенное разрешение<br>
+!ds [480 символов из 0-9 и A-I]
+            </div>
+
+            <p><strong>Правила:</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>Используйте цифры 0-9 для обычных пикселей</li>
+                <li>Используйте буквы A-I (заглавные) для мерцающих пикселей</li>
+                <li>Для 18x16 нужно ровно 288 символов</li>
+                <li>Для 24x20 нужно ровно 480 символов</li>
+                <li>Пиксели рисуются слева направо, сверху вниз</li>
+            </ul>
         </div>
 
-        <div class="status offline" id="status">⚫ Не подключено</div>
-
-        <div class="canvas-wrapper">
-            <canvas id="canvas"></canvas>
+        <div class="log-container" id="logContainer">
+            <strong>Лог активности:</strong>
+            <div id="logEntries"></div>
         </div>
-
-        <div class="info">
-            <strong>Команда для зрителей:</strong> <code>!ds [строка из 0-9 и A-I]</code><br>
-            <strong>0-9</strong> = статичные цвета | <strong>A-I</strong> = мерцающие цвета<br>
-            <strong>Пример:</strong> !ds 000111222333AAABBBCCC... (288 или 480 символов)
-        </div>
-
-        <div class="logs" id="logs"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
     <script>
         let client = null;
         let canvas, ctx;
-        let w, h, pixelSize;
-        let blinkState = false;
-        let blinkInterval;
+        let width = 18, height = 16;
+        let pixelSize = 20;
+        let blinkingPixels = new Set();
 
         const colors = {
-            '0': '#000000', '1': '#ff0000', '2': '#0000ff', '3': '#00ff00',
-            '4': '#ffff00', '5': '#ff00ff', '6': '#00ffff', '7': '#ff8800',
-            '8': '#8800ff', '9': '#ffffff',
-            'A': '#ff0000', 'B': '#0000ff', 'C': '#00ff00', 'D': '#ffff00',
-            'E': '#ff00ff', 'F': '#00ffff', 'G': '#ff8800', 'H': '#8800ff',
-            'I': '#ffffff'
+            '0': '#000000', 'A': '#000000',
+            '1': '#ff0000', 'B': '#ff0000',
+            '2': '#00ff00', 'C': '#00ff00',
+            '3': '#0000ff', 'D': '#0000ff',
+            '4': '#ffff00', 'E': '#ffff00',
+            '5': '#ff00ff', 'F': '#ff00ff',
+            '6': '#00ffff', 'G': '#00ffff',
+            '7': '#ffffff', 'H': '#ffffff',
+            '8': '#ffa500', 'I': '#ffa500',
+            '9': '#800080', 'J': '#800080'
         };
 
-        function log(msg, type = 'info') {
-            const logs = document.getElementById('logs');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logs.insertBefore(entry, logs.firstChild);
-            if (logs.children.length > 50) logs.removeChild(logs.lastChild);
-        }
-
-        function initCanvas() {
-            canvas = document.getElementById('canvas');
+        function init() {
+            canvas = document.getElementById('pixelCanvas');
             ctx = canvas.getContext('2d');
-            
-            const size = document.getElementById('size').value;
-            [w, h] = size.split('x').map(Number);
-            pixelSize = parseInt(document.getElementById('pixelSize').value);
-            
-            canvas.width = w * pixelSize;
-            canvas.height = h * pixelSize;
-            
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            log(`Холст инициализирован: ${w}×${h} (${w*h} пикселей)`);
+            updateCanvasSize();
+            clearCanvas();
+            startBlinkAnimation();
         }
 
-        function drawPixel(x, y, color, blink = false) {
-            if (blink && !blinkState) return;
+        function updateCanvasSize() {
+            canvas.width = width * pixelSize;
+            canvas.height = height * pixelSize;
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function changeResolution() {
+            const resolution = document.getElementById('resolutionSelect').value;
+            if (resolution === '18x16') {
+                width = 18;
+                height = 16;
+            } else {
+                width = 24;
+                height = 20;
+            }
+            updateCanvasSize();
+            clearCanvas();
+            addLog(`Разрешение изменено на ${width}x${height}`);
+        }
+
+        document.getElementById('resolutionSelect').addEventListener('change', changeResolution);
+
+        function drawPixel(x, y, color, blinking = false) {
             ctx.fillStyle = color;
             ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-        }
-
-        function drawCanvas(data) {
-            const expectedLength = w * h;
-            if (data.length !== expectedLength) {
-                log(`Ошибка: ожидается ${expectedLength} символов, получено ${data.length}`, 'error');
-                return;
-            }
-
-            const valid = /^[0-9A-I]+$/i;
-            if (!valid.test(data)) {
-                log('Ошибка: недопустимые символы в команде', 'error');
-                return;
-            }
-
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < data.length; i++) {
-                const char = data[i].toUpperCase();
-                const x = i % w;
-                const y = Math.floor(i / w);
-                const isBlink = char >= 'A' && char <= 'I';
-                drawPixel(x, y, colors[char], isBlink);
+            
+            const key = `${x},${y}`;
+            if (blinking) {
+                blinkingPixels.add(JSON.stringify({x, y, color}));
+            } else {
+                blinkingPixels.forEach(item => {
+                    const data = JSON.parse(item);
+                    if (data.x === x && data.y === y) {
+                        blinkingPixels.delete(item);
+                    }
+                });
             }
         }
 
-        function startBlink() {
-            blinkInterval = setInterval(() => {
+        function startBlinkAnimation() {
+            let blinkState = false;
+            setInterval(() => {
                 blinkState = !blinkState;
-                const lastData = canvas.dataset.lastData;
-                if (lastData) drawCanvas(lastData);
+                blinkingPixels.forEach(item => {
+                    const {x, y, color} = JSON.parse(item);
+                    if (blinkState) {
+                        ctx.fillStyle = color;
+                    } else {
+                        ctx.fillStyle = '#000000';
+                    }
+                    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                });
             }, 500);
         }
 
-        document.getElementById('startBtn').addEventListener('click', () => {
-            const channel = document.getElementById('channel').value.trim().toLowerCase();
+        function parseDrawCommand(pixels) {
+            const expectedLength = width * height;
+            if (pixels.length !== expectedLength) {
+                return { error: `Неверное количество пикселей. Ожидается ${expectedLength}, получено ${pixels.length}` };
+            }
+
+            const validChars = /^[0-9A-I]+$/;
+            if (!validChars.test(pixels)) {
+                return { error: 'Используйте только символы 0-9 и A-I' };
+            }
+
+            return { success: true, pixels };
+        }
+
+        function drawImage(pixels) {
+            let index = 0;
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const char = pixels[index];
+                    const isBlinking = char >= 'A' && char <= 'I';
+                    const color = colors[char];
+                    
+                    if (color) {
+                        drawPixel(x, y, color, isBlinking);
+                    }
+                    index++;
+                }
+            }
+        }
+
+        function addLog(message) {
+            const logEntries = document.getElementById('logEntries');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEntries.insertBefore(entry, logEntries.firstChild);
+            
+            // Keep only last 20 entries
+            while (logEntries.children.length > 20) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        function connect() {
+            const channel = document.getElementById('channelInput').value.trim().toLowerCase();
             if (!channel) {
-                alert('Введи название канала!');
+                alert('Введите никнейм канала!');
                 return;
             }
 
-            initCanvas();
-            startBlink();
+            if (client) {
+                disconnect();
+            }
 
             client = new tmi.Client({
                 channels: [channel]
             });
 
-            client.connect().catch(err => {
-                log(`Ошибка подключения: ${err}`, 'error');
-            });
-
-            client.on('connected', () => {
-                document.getElementById('status').className = 'status online';
-                document.getElementById('status').textContent = `🟢 Подключено к #${channel}`;
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('stopBtn').style.display = 'block';
-                log(`Подключено к каналу #${channel}`, 'success');
+            client.connect().then(() => {
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = `✅ Подключено к каналу: ${channel}`;
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('channelInput').disabled = true;
+                addLog(`Подключено к каналу ${channel}`);
+            }).catch(err => {
+                alert('Ошибка подключения: ' + err);
+                addLog('Ошибка подключения: ' + err);
             });
 
             client.on('message', (channel, tags, message, self) => {
-                if (self) return;
-                
-                const match = message.match(/^!ds\s+([0-9A-Ia-i]+)$/);
-                if (match) {
-                    const data = match[1].toUpperCase();
-                    log(`Команда от ${tags.username}: ${data.length} символов`, 'success');
-                    canvas.dataset.lastData = data;
-                    drawCanvas(data);
+                const msg = message.trim();
+                if (msg.startsWith('!ds ')) {
+                    const pixels = msg.substring(4).toUpperCase();
+                    const result = parseDrawCommand(pixels);
+                    
+                    if (result.error) {
+                        addLog(`❌ ${tags.username}: ${result.error}`);
+                    } else {
+                        drawImage(result.pixels);
+                        addLog(`✅ ${tags.username} нарисовал изображение`);
+                    }
                 }
             });
-        });
+        }
 
-        document.getElementById('stopBtn').addEventListener('click', () => {
-            if (client) client.disconnect();
-            clearInterval(blinkInterval);
-            document.getElementById('status').className = 'status offline';
-            document.getElementById('status').textContent = '⚫ Не подключено';
-            document.getElementById('startBtn').style.display = 'block';
-            document.getElementById('stopBtn').style.display = 'none';
-            log('Отключено', 'error');
-        });
+        function disconnect() {
+            if (client) {
+                client.disconnect();
+                client = null;
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = '❌ Не подключено';
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('channelInput').disabled = false;
+                addLog('Отключено от канала');
+            }
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>
