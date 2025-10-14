@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Twitch Pixel Draw</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -174,6 +173,8 @@
             margin: 15px 0;
             font-family: 'Courier New', monospace;
             overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
         .log-container {
@@ -193,13 +194,12 @@
             font-size: 14px;
         }
 
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
+        ul {
+            margin-left: 20px;
         }
 
-        .blink {
-            animation: blink 1s infinite;
+        li {
+            margin-bottom: 5px;
         }
     </style>
 </head>
@@ -248,19 +248,10 @@
 
             <p><strong>Примеры команд:</strong></p>
             
-            <div class="example-code">
-// Для 18x16 (288 символов)<br>
-!ds 000000000000000000000000000000000000000000111111111111111111111111111111111111111111222222222222222222222222222222222222222222333333333333333333333333333333333333333333444444444444444444444444444444444444444444555555555555555555555555555555555555555555666666666666666666666
-<br><br>
-// Смайлик (пример)<br>
-!ds 000000000000000000003333777777773333000033777777777777773300377777AAAA7777777703777AA777777AA777770377A77777777777A77703777777777777777770377777777777777777037777AA7777AA77770377777AAAAAAA7777703777777777777777700337777777777777330000333377777333000000000000000000000
-<br><br>
-// Для 24x20 (480 символов) - увеличенное разрешение<br>
-!ds [480 символов из 0-9 и A-I]
-            </div>
+            <div class="example-code">!ds 000000000000000000003333777777773333000033777777777777773300377777AAAA7777777703777AA777777AA777770377A77777777777A77703777777777777777770377777777777777777037777AA7777AA77770377777AAAAAAA7777703777777777777777700337777777777777330000333377777333000000000000000000000</div>
 
             <p><strong>Правила:</strong></p>
-            <ul style="margin-left: 20px;">
+            <ul>
                 <li>Используйте цифры 0-9 для обычных пикселей</li>
                 <li>Используйте буквы A-I (заглавные) для мерцающих пикселей</li>
                 <li>Для 18x16 нужно ровно 288 символов</li>
@@ -276,11 +267,12 @@
     </div>
 
     <script>
-        let client = null;
+        let ws = null;
         let canvas, ctx;
         let width = 18, height = 16;
         let pixelSize = 20;
         let blinkingPixels = new Set();
+        let currentChannel = '';
 
         const colors = {
             '0': '#000000', 'A': '#000000',
@@ -399,7 +391,6 @@
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             logEntries.insertBefore(entry, logEntries.firstChild);
             
-            // Keep only last 20 entries
             while (logEntries.children.length > 20) {
                 logEntries.removeChild(logEntries.lastChild);
             }
@@ -412,53 +403,90 @@
                 return;
             }
 
-            if (client) {
+            if (ws) {
                 disconnect();
             }
 
-            client = new tmi.Client({
-                channels: [channel]
-            });
+            currentChannel = channel;
+            
+            ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+            
+            ws.onopen = () => {
+                addLog('Подключение к Twitch IRC...');
+                ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+                ws.send('PASS SCHMOOPIIE');
+                ws.send('NICK justinfan' + Math.floor(Math.random() * 99999));
+                ws.send('JOIN #' + channel);
+            };
 
-            client.connect().then(() => {
-                document.getElementById('status').className = 'status connected';
-                document.getElementById('status').textContent = `✅ Подключено к каналу: ${channel}`;
-                document.getElementById('connectBtn').disabled = true;
-                document.getElementById('disconnectBtn').disabled = false;
-                document.getElementById('channelInput').disabled = true;
-                addLog(`Подключено к каналу ${channel}`);
-            }).catch(err => {
-                alert('Ошибка подключения: ' + err);
-                addLog('Ошибка подключения: ' + err);
-            });
+            ws.onmessage = (event) => {
+                const message = event.data;
+                
+                if (message.includes('PING')) {
+                    ws.send('PONG :tmi.twitch.tv');
+                    return;
+                }
 
-            client.on('message', (channel, tags, message, self) => {
-                const msg = message.trim();
-                if (msg.startsWith('!ds ')) {
-                    const pixels = msg.substring(4).toUpperCase();
-                    const result = parseDrawCommand(pixels);
-                    
-                    if (result.error) {
-                        addLog(`❌ ${tags.username}: ${result.error}`);
-                    } else {
-                        drawImage(result.pixels);
-                        addLog(`✅ ${tags.username} нарисовал изображение`);
+                if (message.includes('Welcome, GLHF!')) {
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').textContent = `✅ Подключено к каналу: ${channel}`;
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('channelInput').disabled = true;
+                    addLog(`Успешно подключено к каналу ${channel}`);
+                    return;
+                }
+
+                if (message.includes('PRIVMSG')) {
+                    const parts = message.split('PRIVMSG');
+                    if (parts.length < 2) return;
+
+                    const userMatch = message.match(/display-name=([^;]+)/);
+                    const username = userMatch ? userMatch[1] : 'Anonymous';
+
+                    const msgParts = parts[1].split(':');
+                    if (msgParts.length < 2) return;
+
+                    const chatMessage = msgParts.slice(1).join(':').trim();
+
+                    if (chatMessage.startsWith('!ds ')) {
+                        const pixels = chatMessage.substring(4).toUpperCase();
+                        const result = parseDrawCommand(pixels);
+                        
+                        if (result.error) {
+                            addLog(`❌ ${username}: ${result.error}`);
+                        } else {
+                            drawImage(result.pixels);
+                            addLog(`✅ ${username} нарисовал изображение`);
+                        }
                     }
                 }
-            });
+            };
+
+            ws.onerror = (error) => {
+                addLog('Ошибка подключения: ' + error.message);
+                alert('Ошибка подключения к Twitch');
+            };
+
+            ws.onclose = () => {
+                addLog('Соединение закрыто');
+                if (document.getElementById('status').className.includes('connected')) {
+                    disconnect();
+                }
+            };
         }
 
         function disconnect() {
-            if (client) {
-                client.disconnect();
-                client = null;
-                document.getElementById('status').className = 'status disconnected';
-                document.getElementById('status').textContent = '❌ Не подключено';
-                document.getElementById('connectBtn').disabled = false;
-                document.getElementById('disconnectBtn').disabled = true;
-                document.getElementById('channelInput').disabled = false;
-                addLog('Отключено от канала');
+            if (ws) {
+                ws.close();
+                ws = null;
             }
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = '❌ Не подключено';
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('channelInput').disabled = false;
+            addLog('Отключено от канала');
         }
 
         window.onload = init;
